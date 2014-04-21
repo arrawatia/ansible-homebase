@@ -1,0 +1,46 @@
+cloud: ec2
+image: ami-fa9cf1ca
+vpc: vpc-1f46ac74
+region: us-west-2a
+
+env: sandbox
+
+security:
+    default:
+        tcp:
+            '0.0.0.0/0': [22,22]
+    web:
+        tcp:
+            '0.0.0.0/0': [80,80]
+            '0.0.0.0/0': [8080,8090]
+        udp:
+            '0.0.0.0/0': [78,78]
+            '0.0.0.0/0': [79,1000]
+        icmp:
+            '0.0.0.0/0': [89,89]
+            '0.0.0.0/0': [90,100]
+clusters: 
+    cnc:
+        facets: 
+            nfs:
+                type: m1.large
+                volume: 20
+                count: 1
+                security: [web]
+            monitoring:
+                type: m1.large
+                volume: 10
+                count: 1
+            logging:
+                type: m1.large
+                count: 1
+    es:
+        facets:
+            search:
+                type: m1.large
+                volume: 100GB
+                count: 3
+            backup:
+                type: m1.large
+                volume: 100GB
+                count: 1

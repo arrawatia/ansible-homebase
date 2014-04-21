@@ -1,0 +1,114 @@
+## Templates
+# vars: &vars
+
+
+# createkeypair: &createkeypair
+  
+
+- name: Create control cluster
+  hosts: local
+  connection: local
+  user: root
+  gather_facts: false
+  
+  vars: &vars
+    env: sandbox
+    cluster: control
+    instance_type: t1.micro
+    image: ami-fa9cf1ca
+    vpc_id: vpc-1f46ac74
+    region: us-west-2a
+  
+  tasks:
+    - name: Create key pair for {{cluster}}
+      local_action: ec2_key name={{cluster}} region={{region}} 
+      register: ec2_keypair
+      tags: keypair
+ 
+    - name: Save key pair 
+      local_action: copy content="{{ec2_keypair.key.private_key}}" dest=credentials/ec2_keys/{{cluster}}.pem
+      when: ec2_keypair|changed
+      tags: keypair
+
+    - name: Create group
+      local_action:
+        module: ec2_group
+        name: ${cluster}
+        description: "{{cluster}} EC2 group"
+        vpc_id: ${vpc_id}
+        region: ${region}
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+      tags: security_group
+
+    - name: Launch instance for NFS 
+      local_action: 
+        module: ec2
+        key_name: ${cluster}
+        group: ${cluster}
+        region: ${region}
+        instance_type: ${instance_type}
+        image: ${image}
+        count: 1
+        wait: yes
+        wait_timeout: 500
+        volumes:
+        - device_name: /dev/sdf
+          volume_size: 20
+          delete_on_termination: false
+        instance_tags:
+          name: "{{env}}-{{cluster}}-nfs"
+        monitoring: yes
+      tags: nfs
+      register: ec2
+
+    - name: Launch instance for Monitoring 
+      local_action: 
+        module: ec2
+        key_name: ${cluster}
+        group: ${cluster}
+        region: ${region}
+        instance_type: ${instance_type}
+        image: ${image}
+        count: 1
+        wait: yes
+        wait_timeout: 500
+        volumes:
+        - device_name: /dev/sdf
+          volume_size: 20
+          delete_on_termination: false
+          name: "{{env}}-{{cluster}}-monitoring-vol"
+        monitoring: yes
+        instance_tags:
+          Name: "{{env}}-{{cluster}}-monitoring"
+      tags: monitoring
+      register: ec2
+
+    - name: Launch instance for Logging 
+      local_action: 
+          module: ec2
+          key_name: ${cluster}
+          group: ${cluster}
+          region: ${region}
+          instance_type: ${instance_type}
+          image: ${image}
+          count: 1
+          wait: yes
+          wait_timeout: 500
+          monitoring: yes
+          instance_tags:
+            Name: "{{env}}-{{cluster}}-logging"
+      tags: logging
+      register: logging
+
+      local_action:
+        module: ec2_vol
+        name: "{{env}}-{{cluster}}-logging"
+        instance: "{{ item.id }} "
+        volume_size: 5
+        with_items: logging.instances
+        register: ec2_vol
+      tags: logging

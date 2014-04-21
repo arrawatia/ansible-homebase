@@ -1,0 +1,23 @@
+[local]
+127.0.0.1
+
+[{{env}}:children]
+{% for cluster in clusters -%}
+{{ cluster }}
+{% endfor %}
+
+{% for cluster in clusters -%}
+[{{ cluster }}:children]
+{% for facet in facets[cluster] -%}
+{{ facet }}
+{% endfor %}
+{% endfor -%}
+
+{% for cluster in clusters -%}
+{% for facet in facets[cluster] -%}
+[{{ facet }}]
+{% for instance in instances[cluster][facet] -%}
+{{instance['Name']}} ansible_ssh_host={{instance['Public IP']}} private_ip={{instance['Private IP']}} index={{instance['Index']}}
+{% endfor %}
+{% endfor %}
+{% endfor %}

@@ -1,0 +1,4 @@
+credentials/ec2_keys/*.pem
+credentials/aws.yaml
+.idea/*
+.ipynb_checkpoints/*
